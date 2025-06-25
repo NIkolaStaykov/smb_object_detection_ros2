@@ -2,7 +2,8 @@
 import rclpy
 from rclpy.node import Node
 import numpy as np
-from os.path import join
+import os
+import csv
 from numpy.lib.recfunctions import unstructured_to_structured
 from message_filters import Subscriber
 from tf2_ros import (
@@ -95,6 +96,14 @@ class DetectionHandlerNode(Node):
             f"{self.get_parameter('detections_info_topic').value}"
         )
 
+
+        # ---------- Setup File Write Variables ----------
+        log_path = os.path.join(os.path.expanduser("~"), "artifact_detections.csv")
+        self.csv_file = open(log_path, mode='w', newline='')
+        self.csv_writer = csv.writer(self.csv_file)
+        self.csv_writer.writerow(["class", "x", "y", "z"])  # CSV header
+        self.get_logger().info(f"[DetectionHandlerNode] Logging to {log_path}")
+
     def detection_info_callback(self, msg):
         """Handle detection info message"""
 
@@ -121,10 +130,18 @@ class DetectionHandlerNode(Node):
                     stamp=rclpy.time.Time(),
                 )
 
+                x = float(world_frame_point.point.x)
+                y = float(world_frame_point.point.y)
+                z = float(world_frame_point.point.z)
+
+                # Log the detection to CSV
+                self.csv_writer.writerow([object_info.class_id, x, y, z])
+                self.csv_file.flush()
+
                 world_frame_object_pose = Pose()
-                world_frame_object_pose.position.x = float(world_frame_point.point.x)
-                world_frame_object_pose.position.y = float(world_frame_point.point.y)
-                world_frame_object_pose.position.z = float(world_frame_point.point.z)
+                world_frame_object_pose.position.x = x
+                world_frame_object_pose.position.y = y
+                world_frame_object_pose.position.z = z
                 world_frame_object_pose.orientation = Quaternion(
                     x=0.0, y=0.0, z=0.0, w=1.0
                 )
@@ -263,6 +280,11 @@ def main(args=None):
     except Exception as e:
         node.get_logger().fatal(f"Fatal error: {str(e)}")
     finally:
+        # Close CSV file if it exists
+        if hasattr(node, 'csv_file') and not node.csv_file.closed:
+            node.csv_file.close()
+            node.get_logger().info("CSV file closed.")
+            
         node.destroy_node()
         rclpy.shutdown()
 
