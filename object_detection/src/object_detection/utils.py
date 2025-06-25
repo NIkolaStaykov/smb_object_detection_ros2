@@ -110,7 +110,7 @@ def fields_to_dtype(fields, point_step):
 
         if hole_size > 0:
             # If there is a hole, add a dummy field to maintain alignment
-            # np_dtype_list.append((f"hole_{offset}", np.uint8, (hole_size,)))
+            np_dtype_list.append((f"hole_{offset}", np.uint8, (hole_size,)))
             offset += hole_size
 
         # Add to list of dtypes with explicit shape for count > 1
@@ -125,10 +125,8 @@ def fields_to_dtype(fields, point_step):
         # If there is a gap at the end, add a dummy field
         hole_size = point_step - offset
         if hole_size > 0:
-            # np_dtype_list.append((f"hole_end", np.uint8, (hole_size,)))
+            np_dtype_list.append((f"hole_end", np.uint8, (hole_size,)))
             offset += hole_size
-
-    # raise ValueError(f"np_dtype_list: {np_dtype_list}")
 
     return np.dtype(np_dtype_list)
 
