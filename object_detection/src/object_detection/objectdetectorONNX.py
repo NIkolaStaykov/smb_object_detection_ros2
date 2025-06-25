@@ -235,8 +235,7 @@ class ObjectDetectorONNX:
                 outputs, original_width, original_height, scale, pad_top, pad_left
             )
 
-            if not self.multiple_instance:
-                detection = self.filter_detection(detection)
+            detection = self.filter_detection(detection)
 
             # Drawing the bounding boxes on the image
             for index, row in detection.iterrows():
@@ -259,7 +258,7 @@ class ObjectDetectorONNX:
 
             return detection, image
 
-    def filter_detection(self, detection):
+    def filter_multiple_detections(self, detection):
         detected_objects = []
         row_to_delete = []
         for i in range(len(detection)):
@@ -270,5 +269,24 @@ class ObjectDetectorONNX:
 
         detection = detection.drop(row_to_delete, axis=0)
         detection.reset_index(inplace=True, drop=True)
+
+        return detection
+
+    def filter_extra_classes(self, detection):
+        row_to_delete = []
+        for i in range(len(detection)):
+            if detection["class"][i] not in self.classes:
+                row_to_delete.append(i)
+
+        detection = detection.drop(row_to_delete, axis=0)
+        detection.reset_index(inplace=True, drop=True)
+
+        return detection
+
+    def filter_detection(self, detection):
+        if not self.multiple_instance:
+            detection = self.filter_multiple_detections(detection)
+        
+        detection = self.filter_extra_classes(detection)
 
         return detection

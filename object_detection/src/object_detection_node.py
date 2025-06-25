@@ -47,6 +47,7 @@ class ObjectDetectionNode(Node):
                 ("project_all_points_to_image", False),
                 ("camera_topic", "/rgb_camera/undistorted"),
                 ("camera_info_topic", "/rgb_camera/camera_info"),
+                ("classes", [11,24,25,39,74]),
                 ("lidar_topic", "/rslidar/points"),
                 ("object_detection_pose_topic", "object_poses"),
                 ("object_detection_output_image_topic", "detections_in_image"),
@@ -135,7 +136,7 @@ class ObjectDetectionNode(Node):
                 "confident": self.get_parameter("confident").value,
                 "iou": self.get_parameter("iou").value,
                 "checkpoint": None,
-                "classes": None,
+                "classes": self.get_parameter("classes").value,
                 "multiple_instance": False,
             },
         )
@@ -331,10 +332,7 @@ class ObjectDetectionNode(Node):
                 object_info_array.info.append(object_information)
                 # Create point cloud
                 object_point_cloud = pointcloud_in_fov[obj.pt_indices]
-                # Debug logging to understand the shape
-                self.get_logger().info(
-                    f"Original object_point_cloud shape: {object_point_cloud.shape}"
-                )
+                
                 # Convert to PointCloud2 message (utils)
                 point_cloud_msg = array_to_pointcloud2(
                     object_point_cloud,
