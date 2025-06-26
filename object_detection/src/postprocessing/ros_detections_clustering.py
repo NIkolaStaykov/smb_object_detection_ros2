@@ -3,6 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
+import rclpy
+from rclpy.serialization import deserialize_message
+from rosidl_runtime_py.utilities import get_message
+from rosbag2_py import SequentialReader, StorageOptions, ConverterOptions
+import csv
+
+
 def cluster_detections(detections, distance_threshold=1.5):
     """
     Clusters detections based on a distance threshold.
@@ -77,7 +84,64 @@ def plot_clusters(detections, clusters):
 
 if __name__ == "__main__":
     print(sys.argv[1])
-    detections = pd.read_csv(sys.argv[1])
+
+    bag_path     = str(sys.argv[1])
+    topic_filter = "/detection_position_transformed"
+
+    # Configure storage and conversion options
+    storage_options = StorageOptions(uri=bag_path, storage_id='mcap')
+    converter_options = ConverterOptions(input_serialization_format='cdr', output_serialization_format='cdr')
+
+    reader = SequentialReader()
+    reader.open(storage_options, converter_options)
+
+    # Get topic types
+    topic_types = reader.get_all_topics_and_types()
+    type_dict = {topic.name: topic.type for topic in topic_types}
+
+    msgs = []
+
+    while reader.has_next():
+        (topic, data, t) = reader.read_next()
+        if topic == topic_filter:
+            msg_type = get_message(type_dict[topic])
+            msg = deserialize_message(data, msg_type)
+            msgs.append((t, msg))
+
+    csv_path = "detections_j.csv"
+
+    if msgs:
+        # Flattened CSV columns: timestamp, header.stamp.sec, header.stamp.nanosec, header.frame_id, pose.position.x, pose.position.y, pose.position.z, pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w
+        fields = [
+            'timestamp',
+            'header.stamp.sec', 'header.stamp.nanosec', 'header.frame_id',
+            'pose.position.x', 'pose.position.y', 'pose.position.z',
+            'pose.orientation.x', 'pose.orientation.y', 'pose.orientation.z', 'pose.orientation.w'
+        ]
+        with open(csv_path, mode='w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(fields)
+            for t, m in msgs:
+                # Flatten header
+                header = m._header
+                stamp = header.stamp
+                frame_id = header.frame_id
+                # Each pose in _poses
+                for pose in m._poses:
+                    pos = pose.position
+                    ori = pose.orientation
+                    row = [
+                        t,
+                        stamp.sec, stamp.nanosec, frame_id,
+                        pos.x, pos.y, pos.z,
+                        ori.x, ori.y, ori.z, ori.w
+                    ]
+                    writer.writerow(row)
+
+
+    detections = pd.read_csv(csv_path)
+    print(detections)
     print("Loaded detections from:", sys.argv[0])
     clusters = cluster_detections(detections)
-    plot_clusters(detections, clusters)
+    clusters.to_csv("clustered_objects_j.csv")
+    # plot_clusters(detections, clusters)
