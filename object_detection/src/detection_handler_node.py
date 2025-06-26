@@ -127,7 +127,7 @@ class DetectionHandlerNode(Node):
                     object_info.position,
                     from_frame=self.camera_frame_id,
                     to_frame=self.map_frame_id,
-                    stamp=rclpy.time.Time(),
+                    stamp=rclpy.time.Time().to_msg(),
                 )
 
                 x = float(world_frame_point.point.x)
@@ -188,21 +188,21 @@ class DetectionHandlerNode(Node):
             for point in pointcloud2_to_xyz_array(point_cloud):
                 og_point = PointStamped()
                 og_point.header = point_cloud.header
-                og_point.point.x = point[0]
-                og_point.point.y = point[1]
-                og_point.point.z = point[2]
+                og_point.point.x = float(point[0])
+                og_point.point.y = float(point[1])
+                og_point.point.z = float(point[2])
                 transformed_point = self.transform_point(
                     og_point,
                     from_frame=self.camera_frame_id,
                     to_frame=self.map_frame_id,
-                    stamp=rclpy.time.Time(),
+                    stamp=rclpy.time.Time().to_msg(),
                 )
                 if transformed_point is not None:
                     transformed_points.append(
                         [
-                            transformed_point.point.x,
-                            transformed_point.point.y,
-                            transformed_point.point.z,
+                            float(transformed_point.point.x),
+                            float(transformed_point.point.y),
+                            float(transformed_point.point.z),
                         ]
                     )
             self.get_logger().info(f"Pointcloud length: {len(transformed_points)}")
